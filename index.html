@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Server Tester</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --accent: #00ff88;
+    --accent2: #7c3aed;
+    --danger: #ff4444;
+    --warning: #ffaa00;
+    --text: #e2e2f0;
+    --muted: #6b6b8a;
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem;
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(124,58,237,0.08) 0%, transparent 60%),
+                      radial-gradient(ellipse at 80% 20%, rgba(0,255,136,0.05) 0%, transparent 50%);
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-size: 1.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+  }
+  .logo span { color: var(--accent); }
+
+  .server-url-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .server-url-row input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 8px;
+    width: 240px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .server-url-row input:focus { border-color: var(--accent); }
+
+  .ping-btn {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .ping-btn:hover { opacity: 0.85; }
+
+  #status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    transition: background 0.3s;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  #status-dot.online  { background: var(--accent);  box-shadow: 0 0 8px var(--accent); animation: pulse 2s infinite; }
+  #status-dot.offline { background: var(--danger); }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 6px var(--accent); }
+    50%      { box-shadow: 0 0 16px var(--accent); }
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 1.25rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card:hover { border-color: #2a2a3e; transform: translateY(-2px); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .method-badge {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: 5px;
+    background: rgba(124,58,237,0.25);
+    color: #a78bfa;
+    letter-spacing: 0.05em;
+  }
+  .method-badge.get { background: rgba(0,255,136,0.15); color: var(--accent); }
+
+  .endpoint-path {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+
+  .card-body { padding: 1.25rem; display: flex; flex-direction: column; gap: 0.75rem; flex: 1; }
+
+  .card-body label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 0.2rem;
+    display: block;
+  }
+
+  .card-body textarea,
+  .card-body select,
+  .card-body input[type="text"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    resize: vertical;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .card-body textarea:focus,
+  .card-body select:focus,
+  .card-body input[type="text"]:focus { border-color: var(--accent2); }
+  .card-body textarea { min-height: 80px; }
+
+  .run-btn {
+    background: linear-gradient(135deg, var(--accent2), #6d28d9);
+    color: #fff;
+    border: none;
+    font-family: var(--sans);
+    font-weight: 700;
+    font-size: 0.82rem;
+    padding: 0.65rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    transition: opacity 0.2s, transform 0.1s;
+    margin-top: auto;
+  }
+  .run-btn:hover   { opacity: 0.9; }
+  .run-btn:active  { transform: scale(0.98); }
+  .run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .response-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.75rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.6;
+    max-height: 200px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: none;
+    color: var(--accent);
+  }
+  .response-box.error { color: var(--danger); }
+  .response-box.visible { display: block; }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  footer {
+    margin-top: 3rem;
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-family: var(--mono);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">AI<span>.</span>Server Tester</div>
+  <div class="server-url-row">
+    <span id="status-dot"></span>
+    <input id="base-url" type="text" value="http://localhost:3000" placeholder="http://localhost:3000"/>
+    <button class="ping-btn" onclick="pingServer()">Ping</button>
+  </div>
+</header>
+
+<div class="grid">
+
+  <!-- Health Check -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge get">GET</span>
+      <span class="endpoint-path">/</span>
+    </div>
+    <div class="card-body">
+      <p style="font-size:0.82rem;color:var(--muted)">Check if the server is online and see all available endpoints.</p>
+      <button class="run-btn" onclick="runTest('health')">▶ Run Health Check</button>
+      <div class="response-box" id="res-health"></div>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge">POST</span>
+      <span class="endpoint-path">/api/chat</span>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Your Message</label>
+        <textarea id="chat-msg">Hello! Are you working? Tell me something interesting.</textarea>
+      </div>
+      <button class="run-btn" onclick="runTest('chat')">▶ Send to AI</button>
+      <div class="response-box" id="res-chat"></div>
+    </div>
+  </div>
+
+  <!-- Summarize -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge">POST</span>
+      <span class="endpoint-path">/api/summarize</span>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Text to Summarize</label>
+        <textarea id="sum-text">Artificial intelligence is rapidly transforming every industry. From healthcare to finance, AI systems are automating complex tasks, improving accuracy, and enabling innovations that were previously impossible. Machine learning models can now diagnose diseases, predict markets, and generate human-like text.</textarea>
+      </div>
+      <div>
+        <label>Length</label>
+        <select id="sum-length">
+          <option value="short">Short (1-2 sentences)</option>
+          <option value="medium">Medium (3-4 sentences)</option>
+          <option value="long">Long (full paragraph)</option>
+        </select>
+      </div>
+      <button class="run-btn" onclick="runTest('summarize')">▶ Summarize</button>
+      <div class="response-box" id="res-summarize"></div>
+    </div>
+  </div>
+
+  <!-- Classify -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge">POST</span>
+      <span class="endpoint-path">/api/classify</span>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Text to Classify</label>
+        <textarea id="cls-text">I am extremely frustrated with this service. Nothing works as advertised!</textarea>
+      </div>
+      <div>
+        <label>Categories (comma separated)</label>
+        <input type="text" id="cls-cats" value="Positive, Negative, Neutral, Complaint"/>
+      </div>
+      <button class="run-btn" onclick="runTest('classify')">▶ Classify</button>
+      <div class="response-box" id="res-classify"></div>
+    </div>
+  </div>
+
+  <!-- Rewrite -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge">POST</span>
+      <span class="endpoint-path">/api/rewrite</span>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Text to Rewrite</label>
+        <textarea id="rew-text">hey can u fix this asap its broken and i need it now</textarea>
+      </div>
+      <div>
+        <label>Tone</label>
+        <select id="rew-tone">
+          <option value="professional">Professional</option>
+          <option value="formal">Formal</option>
+          <option value="casual">Casual</option>
+          <option value="friendly">Friendly</option>
+          <option value="concise">Concise</option>
+          <option value="persuasive">Persuasive</option>
+          <option value="simple">Simple</option>
+        </select>
+      </div>
+      <button class="run-btn" onclick="runTest('rewrite')">▶ Rewrite</button>
+      <div class="response-box" id="res-rewrite"></div>
+    </div>
+  </div>
+
+  <!-- Extract -->
+  <div class="card">
+    <div class="card-header">
+      <span class="method-badge">POST</span>
+      <span class="endpoint-path">/api/extract</span>
+    </div>
+    <div class="card-body">
+      <div>
+        <label>Text to Extract From</label>
+        <textarea id="ext-text">Please contact Sarah Johnson at sarah@example.com or call her at 555-9876. The meeting is on March 5th in Nairobi.</textarea>
+      </div>
+      <div>
+        <label>Fields to Extract (comma separated)</label>
+        <input type="text" id="ext-fields" value="name, email, phone, date, location"/>
+      </div>
+      <button class="run-btn" onclick="runTest('extract')">▶ Extract Data</button>
+      <div class="response-box" id="res-extract"></div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>Open this file in your browser • Server must be running on your machine</p>
+</footer>
+
+<script>
+  function getBase() {
+    return document.getElementById('base-url').value.replace(/\/$/, '');
+  }
+
+  function showResult(id, data, isError = false) {
+    const box = document.getElementById('res-' + id);
+    box.className = 'response-box visible' + (isError ? ' error' : '');
+    box.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+  }
+
+  function setBtn(id, loading) {
+    const card = document.getElementById('res-' + id).closest('.card');
+    const btn = card.querySelector('.run-btn');
+    btn.disabled = loading;
+    btn.innerHTML = loading
+      ? '<span class="spinner"></span> Running...'
+      : btn.dataset.label || btn.innerHTML;
+    if (!loading && !btn.dataset.label) btn.dataset.label = btn.innerHTML;
+  }
+
+  async function pingServer() {
+    const dot = document.getElementById('status-dot');
+    dot.className = '';
+    try {
+      const r = await fetch(getBase() + '/', { signal: AbortSignal.timeout(4000) });
+      if (r.ok) { dot.className = 'online'; }
+      else       { dot.className = 'offline'; }
+    } catch {
+      dot.className = 'offline';
+    }
+  }
+
+  async function runTest(type) {
+    setBtn(type, true);
+    const base = getBase();
+
+    try {
+      let res, body;
+
+      if (type === 'health') {
+        res = await fetch(base + '/');
+        body = await res.json();
+        showResult('health', body);
+
+      } else if (type === 'chat') {
+        const message = document.getElementById('chat-msg').value;
+        res = await fetch(base + '/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message })
+        });
+        body = await res.json();
+        showResult('chat', body.success ? body.data.reply : body);
+
+      } else if (type === 'summarize') {
+        const text   = document.getElementById('sum-text').value;
+        const length = document.getElementById('sum-length').value;
+        res = await fetch(base + '/api/summarize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, length })
+        });
+        body = await res.json();
+        showResult('summarize', body.success ? body.data.summary : body);
+
+      } else if (type === 'classify') {
+        const text       = document.getElementById('cls-text').value;
+        const categories = document.getElementById('cls-cats').value.split(',').map(s => s.trim());
+        res = await fetch(base + '/api/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, categories })
+        });
+        body = await res.json();
+        showResult('classify', body.success ? body.data : body);
+
+      } else if (type === 'rewrite') {
+        const text = document.getElementById('rew-text').value;
+        const tone = document.getElementById('rew-tone').value;
+        res = await fetch(base + '/api/rewrite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, tone })
+        });
+        body = await res.json();
+        showResult('rewrite', body.success ? body.data.rewritten : body);
+
+      } else if (type === 'extract') {
+        const text   = document.getElementById('ext-text').value;
+        const fields = document.getElementById('ext-fields').value.split(',').map(s => s.trim());
+        res = await fetch(base + '/api/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, fields })
+        });
+        body = await res.json();
+        showResult('extract', body.success ? body.data.extracted : body);
+      }
+
+      if (!res.ok) showResult(type, body, true);
+
+    } catch (err) {
+      showResult(type, '❌ Could not reach server.\n\nMake sure your server is running and the URL is correct.\n\nError: ' + err.message, true);
+    }
+
+    setBtn(type, false);
+  }
+
+  // Auto-ping on load
+  pingServer();
+</script>
+</body>
+</html>
